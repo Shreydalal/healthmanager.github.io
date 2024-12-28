@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 relative min-h-screen bg-[url('/static/images/9508803_26807.jpg')] bg-cover bg-center">
+    <div class="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">
+        <form action="{{ url_for('logout') }}" method="POST">
+            <button type="submit" 
+                    class="absolute top-4 right-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">
+                Logout
+            </button>
+        </form>
+        
+        <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">
+            Welcome, {{ session['username'] }}
+        </h2>
+        <div class="text-gray-700">
+            <p class="text-lg"><strong>Age:</strong> {{ medical_info.age }}</p>
+            <p class="text-lg"><strong>Weight:</strong> {{ medical_info.weight }} kg</p>
+            <p class="text-lg"><strong>Height:</strong> {{ medical_info.height }} cm</p>
+            {% if bmi %}
+                <p class="text-lg">
+                    <strong>BMI:</strong> 
+                    <span class="text-black-700">{{ bmi | round(2) }}</span>
+                    <span class="{{ bmi_risk_color }}">{{ bmi_category }}</span>
+                </p>
+            {% else %}
+                <p class="text-lg text-red-600"><strong>BMI:</strong> Not available</p>
+            {% endif %}
+            <a href="{{ url_for('update_medical_info') }}" class="mt-6 inline-block px-6 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 transition">
+                Update Medical Information
+            </a>
+        </div>
+        
+    </div>
+
+    <!-- Floating Delete Button -->
+    <form action="{{ url_for('delete_user', username=session['username']) }}" method="POST" id="delete-form">
+        <button type="button" onclick="confirmDelete()"
+                class="fixed bottom-6 right-6 bg-red-500 text-white w-16 h-16 rounded-full shadow-lg hover:bg-red-600 transition">
+            🗑
+        </button>
+    </form>
+    <script>
+        function confirmDelete() {
+            if (confirm("Are you sure you want to delete your account? This action is permanent.")) {
+                // If confirmed, submit the form
+                document.getElementById('delete-form').submit();
+            }
+        }
+    </script>
+    
+</body>
+</html>

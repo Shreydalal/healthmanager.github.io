@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Account Deletion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen bg-[url('/static/images/9508803_26807.jpg')] bg-cover bg-center">
+    <div class="bg-white shadow-lg rounded-lg w-96 p-8">
+        <h2 class="text-2xl font-semibold text-center mb-4">Confirm Account Deletion</h2>
+        <p class="text-center text-gray-600 mb-6">Enter your password to delete your account.</p>
+
+        <!-- Display flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="mb-4">
+                {% for category, message in messages %}
+                    {% if category == 'danger' %}
+                        <div class="text-red-500 bg-red-100 p-2 rounded-md">{{ message }}</div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('delete_user', username=username) }}">
+            <div class="mb-4">
+                <label for="password" class="block text-gray-700 font-semibold">Password</label>
+                <input type="password" id="password" name="password" class="w-full px-4 py-2 border rounded-lg mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            </div>
+            <button type="submit" class="w-full py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Delete Account</button>
+        </form>
+
+        <div class="mt-4 text-center">
+            <a href="{{ url_for('dashboard') }}" class="text-blue-600 hover:underline">Cancel</a>
+        </div>
+    </div>
+</body>
+</html>
