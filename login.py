@@ -74,7 +74,7 @@ def login():
                 return redirect(url_for('update_medical_info'))
             return redirect(url_for('dashboard'))
         else:
-            flash('Invalid credentials, please try again.', 'danger')
+            flash('Invalid credentials, please try againnn.', 'danger')
 
     return render_template('login.html')
 
