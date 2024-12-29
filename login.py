@@ -57,6 +57,10 @@ class MedicalInfo(db.Model):
     height = db.Column(db.Float)
     user = db.relationship('User', back_populates='medical_info')
 
+@app.route('/')
+def landing_page():
+    return render_template('landing_page.html')
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

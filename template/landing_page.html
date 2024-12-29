@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Health Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans ">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white fixed top-0 left-0 w-full shadow-md z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Health Manager</h1>
+            <nav>
+                <a href="/login" class="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-gray-200">Login</a>
+                <a href="/signup" class="ml-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">Sign Up</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="bg-blue-50 py-20">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-4xl font-bold text-gray-800">Simplify Your Health Management</h2>
+            <p class="mt-4 text-gray-600 text-lg">
+                Securely manage your personal health data, update your medical information, and reset your password with ease.
+            </p>
+            <div class="mt-6 flex justify-center space-x-4">
+                <a href="/login" class="px-6 py-3 bg-blue-600 text-white text-lg rounded-lg hover:bg-blue-700">
+                    Login
+                </a>
+                <a href="/signup" class="px-6 py-3 bg-green-500 text-white text-lg rounded-lg hover:bg-green-600">
+                    Sign Up
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-20">
+        <div class="container mx-auto px-6">
+            <h3 class="text-3xl font-bold text-center text-gray-800">Features</h3>
+            <p class="mt-4 text-center text-gray-600">
+                Why choose Health Manager?
+            </p>
+            <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Feature 1 -->
+                <div class="bg-white shadow-lg rounded-lg p-6">
+                    <h4 class="text-xl font-semibold text-gray-800">Secure Login & Signup</h4>
+                    <p class="mt-2 text-gray-600">
+                        Register easily and log in securely using hashed passwords for maximum safety.
+                    </p>
+                </div>
+                <!-- Feature 2 -->
+                <div class="bg-white shadow-lg rounded-lg p-6">
+                    <h4 class="text-xl font-semibold text-gray-800">OTP-Based Password Reset</h4>
+                    <p class="mt-2 text-gray-600">
+                        Forgot your password? No worries. Reset it quickly using a secure OTP system.
+                    </p>
+                </div>
+                <!-- Feature 3 -->
+                <div class="bg-white shadow-lg rounded-lg p-6">
+                    <h4 class="text-xl font-semibold text-gray-800">Personalized Health Dashboard</h4>
+                    <p class="mt-2 text-gray-600">
+                        Update and manage your medical information easily on your personal dashboard.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="bg-blue-50 py-20">
+        <div class="container mx-auto px-6 text-center">
+            <h3 class="text-3xl font-bold text-gray-800">What Our Users Say</h3>
+            <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white shadow-lg rounded-lg p-6">
+                    <p class="text-gray-600">
+                        "Health Manager made managing my health information a breeze. The password reset with OTP was a lifesaver!"
+                    </p>
+                    <h4 class="mt-4 text-lg font-bold text-gray-800">- John Doe</h4>
+                </div>
+                <div class="bg-white shadow-lg rounded-lg p-6">
+                    <p class="text-gray-600">
+                        "I love how simple and intuitive the platform is. Highly recommend it!"
+                    </p>
+                    <h4 class="mt-4 text-lg font-bold text-gray-800">- Jane Smith</h4>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6">
+        <div class="container mx-auto px-6 text-center">
+            <p>&copy; 2024 Health Manager. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
