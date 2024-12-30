@@ -1,19 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session  # type: ignore
 from werkzeug.security import generate_password_hash, check_password_hash # type: ignore
-from flask_sqlalchemy import SQLAlchemy# type: ignore
-from flask_mail import Mail, Message# type: ignore
-from itsdangerous import URLSafeTimedSerializer, SignatureExpired# type: ignore
-from flask_migrate import Migrate# type: ignore
-from random import randint# type: ignore
-from datetime import datetime, timedelta# type: ignore
-from email_validator import validate_email, EmailNotValidError# type: ignore
-import hashlib# type: ignore
-
+from flask_mail import Mail, Message  # type: ignore
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired  # type: ignore
+from random import randint  # type: ignore
+from datetime import datetime, timedelta  # type: ignore
+from email_validator import validate_email, EmailNotValidError  # type: ignore
+from flask_pymongo import PyMongo  # type: ignore
+import hashlib  # type: ignore
 
 # Initialize Flask app
 app = Flask(__name__, template_folder='template')
 app.secret_key = '9099544377'
-
 
 # Configure email
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -24,43 +21,15 @@ app.config['MAIL_PASSWORD'] = 'vsrfiworhqitklls'
 mail = Mail(app)
 s = URLSafeTimedSerializer(app.secret_key)
 
-# Configure SQLite database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///user_database1.db'  # SQLite file
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Configure MongoDB
+app.config['MONGO_URI'] = 'mongodb://localhost:27017/healthdb'
+mongo = PyMongo(app)
 
-# Initialize SQLAlchemy and Migrate
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
 otp_store = {}
-
-# Define the User model
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
-    medical_info = db.relationship('MedicalInfo', back_populates='user', uselist=False)
-    
-    def delete(self):
-        # Deleting related medical information before deleting user
-        if self.medical_info:
-            db.session.delete(self.medical_info)
-        db.session.delete(self)
-        db.session.commit()
-    
-    
-class MedicalInfo(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    age = db.Column(db.Integer)
-    weight = db.Column(db.Float)
-    height = db.Column(db.Float)
-    user = db.relationship('User', back_populates='medical_info')
 
 @app.route('/')
 def landing_page():
     return render_template('landing_page.html')
-
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -68,17 +37,16 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        # Check if user exists and password is correct
-        user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password, password):
+        user = mongo.db.users.find_one({"username": username})
+        if user and check_password_hash(user['password'], password):
             session['username'] = username
-            session.pop('update_required', None)  # Clear update flag if exists
-            if not user.medical_info:
+            session.pop('update_required', None)
+            if not user.get('medical_info'):
                 flash('Please update your medical information.', 'info')
                 return redirect(url_for('update_medical_info'))
             return redirect(url_for('dashboard'))
         else:
-            flash('Invalid credentials, please try againnn.', 'danger')
+            flash('Invalid credentials, please try again.', 'danger')
 
     return render_template('login.html')
 
@@ -90,28 +58,29 @@ def signup():
         password = request.form['password']
         confirm_password = request.form['confirm_password']
 
-        # Validate inputs
         if password != confirm_password:
             flash('Passwords do not match.', 'danger')
             return redirect(url_for('signup'))
 
-        if User.query.filter_by(username=username).first():
+        if mongo.db.users.find_one({"username": username}):
             flash('Username already exists. Please choose a different one.', 'danger')
             return redirect(url_for('signup'))
 
-        if User.query.filter_by(email=email).first():
+        if mongo.db.users.find_one({"email": email}):
             flash('Email already exists. Please use a different email.', 'danger')
             return redirect(url_for('signup'))
 
-        # Hash the password and create a new user
         hashed_password = generate_password_hash(password)
-        new_user = User(username=username, email=email, password=hashed_password)
-        db.session.add(new_user)
-        db.session.commit()
+        new_user = {
+            "username": username,
+            "email": email,
+            "password": hashed_password,
+            "medical_info": None
+        }
+        mongo.db.users.insert_one(new_user)
 
-        # Set session and redirect to update medical info
         session['username'] = username
-        session['update_required'] = True  # Flag for first-time detail update
+        session['update_required'] = True
         flash('Account created successfully! Please update your details.', 'success')
         return redirect(url_for('update_medical_info'))
 
@@ -121,28 +90,25 @@ def signup():
 def update_medical_info():
     if 'username' not in session:
         return redirect(url_for('login'))
-    
-    user = User.query.filter_by(username=session['username']).first()
+
+    user = mongo.db.users.find_one({"username": session['username']})
     if not user:
         flash('User not found.', 'danger')
         return redirect(url_for('login'))
-    
+
     if request.method == 'POST':
-        # Update or create medical information
         age = request.form.get('age')
         weight = request.form.get('weight')
         height = request.form.get('height')
-        
-        if user.medical_info:
-            user.medical_info.age = age
-            user.medical_info.weight = weight
-            user.medical_info.height = height
-        else:
-            new_medical_info = MedicalInfo(user_id=user.id, age=age, weight=weight, height=height)
-            db.session.add(new_medical_info)
-        
-        db.session.commit()
-        session.pop('update_required', None)  # Remove the flag after updating details
+
+        medical_info = {
+            "age": int(age),
+            "weight": float(weight),
+            "height": float(height)
+        }
+        mongo.db.users.update_one({"username": session['username']}, {"$set": {"medical_info": medical_info}})
+
+        session.pop('update_required', None)
         flash('Medical information updated successfully!', 'success')
         return redirect(url_for('dashboard'))
 
@@ -152,70 +118,59 @@ def update_medical_info():
 def dashboard():
     if 'username' not in session:
         return redirect(url_for('login'))
-    
-    user = User.query.filter_by(username=session['username']).first()
+
+    user = mongo.db.users.find_one({"username": session['username']})
     if not user:
         flash('User not found.', 'danger')
         return redirect(url_for('login'))
-    
-    # Check if medical information is available
-    if not user.medical_info:
+
+    medical_info = user.get('medical_info')
+    if not medical_info:
         flash('Please update your medical information.', 'info')
         return redirect(url_for('update_medical_info'))
-    
-    # Extract weight and height from medical_info
-    weight = user.medical_info.weight  # Accessing attributes directly
-    height_cm = user.medical_info.height  # Accessing attributes directly
-    
-    # Calculate BMI if weight and height are available
+
+    weight = medical_info.get('weight')
+    height_cm = medical_info.get('height')
+
     bmi = None
     bmi_category = None
     bmi_risk_color = None
     if weight and height_cm:
-        height_m = height_cm / 100  # Convert height to meters
+        height_m = height_cm / 100
         bmi = weight / (height_m ** 2)
-        
-        # Determine BMI category and risk level
+
         if bmi < 18.5:
             bmi_category = "Underweight"
-            bmi_risk_color = "text-yellow-500"  # Moderate risk
+            bmi_risk_color = "text-yellow-500"
         elif 18.5 <= bmi < 24.9:
             bmi_category = "Normal weight"
-            bmi_risk_color = "text-green-500"  # Low risk
+            bmi_risk_color = "text-green-500"
         elif 25 <= bmi < 29.9:
             bmi_category = "Overweight"
-            bmi_risk_color = "text-orange-500"  # Increased risk
+            bmi_risk_color = "text-orange-500"
         elif 30 <= bmi < 34.9:
             bmi_category = "Obesity (Class-I)"
-            bmi_risk_color = "text-red-500"  # High risk
+            bmi_risk_color = "text-red-500"
         elif 35 <= bmi < 39.9:
             bmi_category = "Obesity (Class-II)"
-            bmi_risk_color = "text-red-500"  # High risk
+            bmi_risk_color = "text-red-500"
         else:
             bmi_category = "Obesity (Class-III)"
-            bmi_risk_color = "text-red-500"  # High risk
-    
+            bmi_risk_color = "text-red-500"
+
     return render_template(
         'dashboard.html',
-        medical_info=user.medical_info,
+        medical_info=medical_info,
         bmi=bmi,
         bmi_category=bmi_category,
         bmi_risk_color=bmi_risk_color
     )
 
-@app.route('/view_users')
-def view_users():
-    users = User.query.all()
-    return '<br>'.join([f"Username: {user.username}, Email: {user.email}" for user in users])
-
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
-        print(f"Form data received: {request.form}")
-        email = request.form.get('email', ' ').strip()  # Strip any spaces
-        print(f"Email received from form: {email}")
+        email = request.form.get('email', ' ').strip()
 
-        # Validate email format
         try:
             validate_email(email)
         except EmailNotValidError:
@@ -226,26 +181,20 @@ def forgot_password():
             flash('Email field is required.', 'danger')
             return redirect(url_for('forgot_password'))
 
-        # Query case-insensitively
-        user = User.query.filter(User.email.ilike(email)).first()
-        print(f"Query result: {user}") 
+        user = mongo.db.users.find_one({"email": email})
         if user:
-            # Generate OTP
             otp = randint(100000, 999999)
-            
-
             otp_store[email] = {
                 'otp': otp,
                 'expiration': datetime.now() + timedelta(minutes=5)
             }
 
-            # Send OTP via email
             msg = Message('Password Reset OTP', sender='x718114@gmail.com', recipients=[email])
             msg.body = f"Your OTP for password reset is: {otp}"
             try:
                 mail.send(msg)
                 flash('OTP has been sent to your email.', 'success')
-                return redirect(url_for('reset_password', email=email))  # Pass email dynamically
+                return redirect(url_for('reset_password', email=email))
             except Exception as e:
                 flash('Failed to send OTP. Please try again later.', 'danger')
                 return redirect(url_for('forgot_password'))
@@ -282,9 +231,8 @@ def reset_password(email):
             return redirect(url_for('reset_password', email=email))
 
         # Update password in the database
-        user = User.query.filter_by(email=email).first()
-        user.password = generate_password_hash(new_password)
-        db.session.commit()
+        hashed_password = generate_password_hash(new_password)
+        mongo.db.users.update_one({"email": email}, {"$set": {"password": hashed_password}})
 
         # Remove OTP from the store after successful use
         del otp_store[email]
@@ -300,7 +248,9 @@ def delete_user(username):
         flash('Unauthorized access.', 'danger')
         return redirect(url_for('dashboard'))
 
-    user = User.query.filter_by(username=username).first()
+    # Fetch user from MongoDB collection
+    user = mongo.db.users.find_one({'username': username})
+    
     if not user:
         flash('User not found.', 'danger')
         return redirect(url_for('dashboard'))
@@ -313,25 +263,26 @@ def delete_user(username):
             return redirect(url_for('delete_user', username=username))
 
         # Check if the provided password matches the user's stored hashed password
-        if check_password_hash(user.password, password):
+        if check_password_hash(user['password'], password):
             try:
-                MedicalInfo.query.filter_by(user_id=user.id).delete()
-                db.session.delete(user)  # Deleting the user
-                db.session.commit()
+                # Delete associated medical info
+                mongo.db.medical_info.delete_many({'user_id': user['_id']})
+                
+                # Delete user
+                mongo.db.users.delete_one({'_id': user['_id']})
+                
                 session.clear()  # Clear the session
-                flash(f'User {user.username} has been deleted.', 'success')
+                flash(f'User {user["username"]} has been deleted.', 'success')
                 return redirect(url_for('login'))
             except Exception as e:
-                db.session.rollback()
-                flash('An error occurred while deleting the user.', 'danger')
                 app.logger.error(f"Error deleting user {username}: {e}")  # Log the error
+                flash('An error occurred while deleting the user.', 'danger')
         else:
             flash('Incorrect password. Account deletion failed.', 'danger')
 
     # Render a confirmation form if method is GET or password is incorrect
     return render_template('confirm_delete.html', username=username)
 
-    
 @app.route('/logout', methods=['POST'])
 def logout():
     session.pop('username', None)  # Remove the username from the session
@@ -339,4 +290,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, threaded=True)
