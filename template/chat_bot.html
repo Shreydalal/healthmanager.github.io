@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Health Mnager Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="icon"
+      type="image/x-icon"
+      href="{{ url_for('static', filename='logo.png') }}"
+    />
+    <style>
+      /* Custom Scrollbar CSS */
+      #chat-history::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      #chat-history::-webkit-scrollbar-track {
+        background: #f3f4f6;
+        border-radius: 10px;
+      }
+      #chat-history::-webkit-scrollbar-thumb {
+        background: #a3bffa;
+        border-radius: 10px;
+      }
+      #chat-history::-webkit-scrollbar-thumb:hover {
+        background: #6366f1;
+      }
+      #chat-history {
+        scrollbar-width: thin;
+        scrollbar-color: #a3bffa #f3f4f6;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gradient-to-r from-blue-200 via-purple-300 to-indigo-400 h-screen flex items-center justify-center font-sans"
+  >
+    <div
+      class="container bg-white rounded-lg shadow-lg p-6 max-w-6xl w-screen flex"
+    >
+      <!-- Sidebar -->
+      <div class="w-1/4 bg-gray-100 p-4 rounded-lg mr-4">
+        <h2 class="text-lg font-bold mb-4">Quick Messages</h2>
+        <ul id="quick-messages" class="space-y-2">
+          <!-- Quick messages will be added here dynamically -->
+        </ul>
+      </div>
+
+      <!-- Main Content -->
+      <div class="w-full h-3/4 flex flex-col">
+        <!-- Title -->
+        <h1 class="text-2xl font-bold text-gray-700 text-center mb-6">
+          What can I help with?
+        </h1>
+
+        <!-- Chat History -->
+        <div
+          id="chat-history"
+          class="mt-6 pb-8 pl-8 pr-2 space-y-4 max-h-80 h-96 overflow-y-auto flex-grow"
+        >
+          <!-- Dynamic chat messages will be added here -->
+        </div>
+
+        <!-- Message Input -->
+        <div
+          class="flex items-center border border-gray-300 rounded-lg overflow-hidden"
+        >
+          <input
+            type="text"
+            id="message"
+            class="w-full h-16 px-4 focus:outline-none"
+            placeholder="Type your message here..."
+          />
+          <button
+            id="submit-btn"
+            class="bg-blue-500 flex items-center gap-2 py-3 mr-3 rounded-md text-white h-full px-5 hover:bg-blue-600 active:scale-95 transition-transform duration-150"
+          >
+            <span>Generate</span>
+            <img
+              src="https://cdn-icons-png.flaticon.com/128/149/149446.png"
+              class="invert brightness-0 pr-1 filter"
+              height="20px"
+              width="22px"
+            />
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const submitBtn = document.getElementById("submit-btn");
+      const chatHistory = document.getElementById("chat-history");
+      const messageInput = document.getElementById("message");
+      const quickMessages = document.getElementById("quick-messages");
+
+      const messages = {
+        1: "Provide total likes, shares, and comments for each post type.",
+        2: "Provide average likes, shares, and comments for each post type",
+        3: "Can you analyze my recent posts?",
+        4: "What type of content gets the most likes?",
+        5: "How do I increase my followers?",
+      };
+
+      // Populate the sidebar with quick messages
+      for (const [key, value] of Object.entries(messages)) {
+        const li = document.createElement("li");
+        li.className =
+          "cursor-pointer p-2 bg-white rounded-lg hover:bg-gray-200";
+        li.textContent = value;
+        li.addEventListener("click", () => {
+          messageInput.value = value;
+        });
+        quickMessages.appendChild(li);
+      }
+
+      submitBtn.addEventListener("click", async () => {
+        const userMessage = messageInput.value.trim();
+
+        if (!userMessage) {
+          alert("Please enter a message.");
+          return;
+        }
+
+        // Add user message to chat history
+        chatHistory.innerHTML += `
+          <div class="flex justify-end">
+            <div class="bg-gray-100 p-3 rounded-lg max-w-sm">
+              <span class="font-semibold"></span> ${userMessage}
+            </div>
+          </div>
+        `;
+
+        // Clear input field
+        messageInput.value = "";
+
+        // Change button to loader
+        submitBtn.innerHTML = `
+          <div class="flex items-center gap-2">
+            <div class="h-2 w-2 rounded-full animate-bounce bg-white "></div>
+            <div class="h-2 w-2 rounded-full animate-bounce bg-white delay-75"></div>
+            <div class="h-2 w-2 rounded-full animate-bounce bg-white delay-150"></div>
+          </div>
+        `;
+        submitBtn.disabled = true;
+
+        try {
+          // Make an API call
+          const response = await fetch("/bot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: userMessage }),
+          });
+
+          const data = await response.json();
+          const botMessage = data.bot || "Sorry, I didn't get that.";
+          const formattedMessage = botMessage.replace(/\n/g, "<br>");
+
+          // Add bot's message to chat history
+          chatHistory.innerHTML += `
+            <div class="flex items-center space-x-2 text-gray-800 p-3 rounded-lg">
+              <span>${formattedMessage}</span>
+            </div>
+          `;
+        } catch (error) {
+          alert("An error occurred. Please try again.");
+        } finally {
+          // Restore button state
+          submitBtn.innerHTML = `
+            <span>Generate</span>
+            <img
+              src="https://cdn-icons-png.flaticon.com/128/149/149446.png"
+              class="invert brightness-0 filter"
+              height="20px"
+              width="20px"
+            />
+          `;
+          submitBtn.disabled = false;
+          chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+      });
+    </script>
+  </body>
+</html>

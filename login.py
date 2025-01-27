@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session  # type: ignore
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify  # type: ignore
 from werkzeug.security import generate_password_hash, check_password_hash # type: ignore
 from flask_mail import Mail, Message  # type: ignore
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired  # type: ignore
@@ -7,23 +7,43 @@ from datetime import datetime, timedelta  # type: ignore
 from email_validator import validate_email, EmailNotValidError  # type: ignore
 from flask_pymongo import PyMongo  # type: ignore
 import hashlib  # type: ignore
+from werkzeug.utils import secure_filename
+from typing import Optional
+import os
+import json
+import re
+import traceback
+import requests
+
 
 # Initialize Flask app
 app = Flask(__name__, template_folder='template')
 app.secret_key = '9099544377'
 
 # Configure email
+app.config['MAIL_USERNAME'] = 'x718114@gmail.com'
+app.config['MAIL_PASSWORD'] = 'vsrfiworhqitklls'
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'x718114@gmail.com'
-app.config['MAIL_PASSWORD'] = 'vsrfiworhqitklls'
 mail = Mail(app)
 s = URLSafeTimedSerializer(app.secret_key)
 
 # Configure MongoDB
 app.config['MONGO_URI'] = 'mongodb://localhost:27017/healthdb'
 mongo = PyMongo(app)
+
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+BASE_API_URL = "https://api.langflow.astra.datastax.com"
+LANGFLOW_ID = "fadc231c-beec-4dfa-aec3-91d744a8d4b1"
+FLOW_ID = "f5c80e54-49c5-48b9-aeee-896ff907ed57"
+APPLICATION_TOKEN = "AstraCS:fGZYRooexRspBKXMpmiohOli:d6a1beb8b46be9100d624d285c43f5f30de9742da35ead5c5725e95bdeeffdd1"
+ENDPOINT = FLOW_ID  # You can set a specific endpoint name in the flow settings
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 otp_store = {}
 
@@ -197,6 +217,7 @@ def forgot_password():
                 return redirect(url_for('reset_password', email=email))
             except Exception as e:
                 flash('Failed to send OTP. Please try again later.', 'danger')
+                print(e)
                 return redirect(url_for('forgot_password'))
         else:
             flash('No user found with that email.', 'danger')
@@ -288,6 +309,163 @@ def logout():
     session.pop('username', None)  # Remove the username from the session
     flash('You have been logged out successfully.', 'success')
     return redirect(url_for('login'))
+
+@app.route('/profile', methods=['GET', 'POST'])
+def profile():
+    if 'username' not in session:
+        flash('Please log in to access your profile.', 'danger')
+        return redirect(url_for('login'))
+    
+    user = mongo.db.users.find_one({"username": session['username']})
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        mobile_no = request.form.get('mobile_no')
+
+        # Validate inputs
+        if not name or not email or not mobile_no:
+            flash('All fields are required.', 'danger')
+            return redirect(url_for('profile'))
+        
+        # Check for email uniqueness
+        email_exists = mongo.db.users.find_one({"email": email, "_id": {"$ne": user["_id"]}})
+        if email_exists:
+            flash('Email is already in use by another user.', 'danger')
+            return redirect(url_for('profile'))
+        
+        user_name_exists = mongo.db.users.find_one({"name": name , "_id": {"$ne": user["_id"]}})
+        if user_name_exists:
+            flash('Username is already in use by another user.', 'danger')
+            return redirect(url_for('profile'))
+
+        # Update user information
+        mongo.db.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"username": name, "email": email, "mobile_no": mobile_no}}
+        )
+
+        session['username'] = name  # Update session username if changed
+        flash('Profile updated successfully!', 'success')
+        return redirect(url_for('dashboard'))
+
+    return render_template('profile.html', user=user)
+
+@app.route('/update_profile_picture', methods=['POST'])
+def update_profile_picture():
+    if 'username' not in session:
+        flash('Please log in to update your profile picture.', 'danger')
+        return redirect(url_for('login'))
+
+    user = mongo.db.users.find_one({"username": session['username']})
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('login'))
+
+    if 'profile_picture' in request.files:
+        file = request.files['profile_picture']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+
+            mongo.db.users.update_one(
+                {"_id": user["_id"]},
+                {"$set": {"profile_picture": file_path}}
+            )
+
+            flash('Profile picture updated successfully!', 'success')
+            return redirect(url_for('profile'))
+        else:
+            flash('Invalid file type. Please upload an image.', 'danger')
+
+    return redirect(url_for('profile'))
+
+
+# Function to run the flow
+def run_flow(message: str) -> dict:
+    api_url = f"https://api.langflow.astra.datastax.com/lf/fadc231c-beec-4dfa-aec3-91d744a8d4b1/api/v1/run/f5c80e54-49c5-48b9-aeee-896ff907ed57?stream=false"
+    payload = {
+        "input_value": message,
+        "output_type": "chat",
+        "input_type": "chat",
+    }
+    headers = {
+    "Authorization": f"Bearer {APPLICATION_TOKEN}",  # Replace with your actual API key
+    "Content-Type": "application/json"
+    }
+    try:
+        response = requests.post(api_url, json=payload, headers=headers)
+        response.raise_for_status()  # Raise exception for HTTP errors
+        return response.json()  # Parse JSON response
+    except requests.exceptions.RequestException as e:
+        print(f"RequestException: {str(e)}")  # Log the exception
+        traceback.print_exc()
+        return {"error": f"Request failed: {str(e)}"}
+
+def clean_text(text: str) -> str:
+    # Remove special characters like #, * (excluding ** for bold)
+    text = re.sub(r"(?<!\*)[\\#*](?!\*)", "", text).strip()
+    # Replace **text** with <strong>text</strong> for bold formatting
+    text = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", text)
+    return text
+
+# In-memory chat history (to simulate session state in Flask)
+chat_history = []
+
+@app.route("/bot", methods=["GET", "POST"])
+def home():
+    global chat_history
+
+    if request.method == "POST":
+        try:
+            data = request.get_json()
+            # print(f"Received JSON: {data}")  # Log incoming JSON
+
+            if not data or not data.get("message", "").strip():
+                return jsonify({"error": "Please enter a message"}), 400
+
+            message = data["message"]
+            # print(f"User Message: {message}")  # Log user's message
+
+            # Call run_flow and log its response
+            response = run_flow(message)
+            # print(f"Langflow API Response: {response}")
+
+            if "error" in response:
+                # print(f"Langflow API Error: {response['error']}")
+                return jsonify({"error": response["error"]}), 500
+
+            # Extract and clean response
+            response_text = (
+                response.get("outputs", [{}])[0]
+                .get("outputs", [{}])[0]
+                .get("results", {})
+                .get("message", {})
+                .get("text", "No response text found")
+            )
+
+            cleaned_response_text = clean_text(response_text)
+
+            if not cleaned_response_text:
+                cleaned_response_text = "Sorry, I couldn't understand that."
+
+            # print(f"Cleaned Response Text: {cleaned_response_text}")  # Log cleaned response
+
+            return jsonify({"bot": cleaned_response_text})  # Return bot's response
+
+        except Exception as e:
+            # print(f"Unexpected Error: {str(e)}")  # Log unexpected errors
+            traceback.print_exc()
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    # Render a simple page for GET requests
+    return render_template("chat_bot.html", chat_history=chat_history)
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, threaded=True)

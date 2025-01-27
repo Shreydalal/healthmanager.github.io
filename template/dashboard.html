@@ -8,17 +8,22 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 <body class="bg-gray-100 relative min-h-screen bg-[url('/static/images/9508803_26807.jpg')] bg-cover bg-center">
-    <div class="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">
-        <form action="{{ url_for('logout') }}" method="POST">
-            <button type="submit" 
-                    class="absolute top-4 right-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">
-                Logout
-            </button>
-        </form>
-        
+    <!-- Profile Icon -->
+    <a href="{{ url_for('profile') }}" class="absolute top0 right-10">
+        <img 
+        src="/static/images/default-profile.png" 
+        alt="Profile" 
+        class="w-10 h-10 rounded-full hover:ring-2 hover:ring-blue-500 transition"
+        title="Go to Profile">
+    </a>
+    <div class="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md relative">
+
+        <!-- Welcome Section -->
         <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">
             Welcome, {{ session['username'] }}
         </h2>
+        
+        <!-- User Medical Information -->
         <div class="text-gray-700">
             <p class="text-lg"><strong>Age:</strong> {{ medical_info.age }}</p>
             <p class="text-lg"><strong>Weight:</strong> {{ medical_info.weight }} kg</p>
@@ -36,24 +41,6 @@
                 Update Medical Information
             </a>
         </div>
-        
     </div>
-
-    <!-- Floating Delete Button -->
-    <form action="{{ url_for('delete_user', username=session['username']) }}" method="POST" id="delete-form">
-        <button type="button" onclick="confirmDelete()"
-                class="fixed bottom-6 right-6 bg-red-500 text-white w-16 h-16 rounded-full shadow-lg hover:bg-red-600 transition">
-            🗑
-        </button>
-    </form>
-    <script>
-        function confirmDelete() {
-            if (confirm("Are you sure you want to delete your account? This action is permanent.")) {
-                // If confirmed, submit the form
-                document.getElementById('delete-form').submit();
-            }
-        }
-    </script>
-    
 </body>
 </html>
