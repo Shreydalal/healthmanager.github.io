@@ -20,6 +20,7 @@ import requests
 app = Flask(__name__, template_folder='template')
 app.secret_key = '9099544377'
 
+
 # Configure email
 app.config['MAIL_USERNAME'] = os.getenv("MAIL_USERNAME")
 app.config['MAIL_PASSWORD'] = os.getenv("MAIL_PASSWORD")
@@ -39,7 +40,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 BASE_API_URL = "https://api.langflow.astra.datastax.com"
 LANGFLOW_ID = "fadc231c-beec-4dfa-aec3-91d744a8d4b1"
 FLOW_ID = "f5c80e54-49c5-48b9-aeee-896ff907ed57"
-APPLICATION_TOKEN = os.getenv("APPLICATION_TOKEN")
+APPLICATION_TOKEN = "Your application token"
 ENDPOINT = FLOW_ID  # You can set a specific endpoint name in the flow settings
 
 def allowed_file(filename):
