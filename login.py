@@ -39,7 +39,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 BASE_API_URL = "https://api.langflow.astra.datastax.com"
 LANGFLOW_ID = "fadc231c-beec-4dfa-aec3-91d744a8d4b1"
 FLOW_ID = "f5c80e54-49c5-48b9-aeee-896ff907ed57"
-APPLICATION_TOKEN = "AstraCS:fGZYRooexRspBKXMpmiohOli:d6a1beb8b46be9100d624d285c43f5f30de9742da35ead5c5725e95bdeeffdd1"
+APPLICATION_TOKEN = os.getenv("APPLICATION_TOKEN")
 ENDPOINT = FLOW_ID  # You can set a specific endpoint name in the flow settings
 
 def allowed_file(filename):
